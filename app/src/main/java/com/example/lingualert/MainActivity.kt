@@ -1,9 +1,11 @@
 package com.example.lingualert
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -56,10 +58,10 @@ import java.time.format.DateTimeFormatter
 class MainActivity : ComponentActivity() {
     private val viewModel: AlarmViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-
             LingualertTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(

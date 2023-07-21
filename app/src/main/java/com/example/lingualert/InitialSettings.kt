@@ -1,6 +1,12 @@
 package com.example.lingualert
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.fadeIn
@@ -26,18 +32,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.example.lingualert.ui.theme.LingualertTheme
 
 /*
  settings screen to be used on first launch and get permission from user to ring alarm
  */
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun InitialScreenFlow(viewModel: SettingsViewModel, modifier: Modifier) {
@@ -93,8 +103,33 @@ fun InitialScreen(viewModel: SettingsViewModel, modifier: Modifier) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
+    // permission launcher needed to get permission from user
+
+    val context = LocalContext.current
+    var hasNotificationPermission by remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        } else mutableStateOf(true)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            hasNotificationPermission = isGranted
+            if (!isGranted) {
+
+            }
+        }
+    )
+
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,7 +154,8 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                 textAlign = TextAlign.Center
             )
             Button(onClick = {
-                viewModel.advanceScreen()
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                //viewModel.advanceScreen()
             }
             ) {
                 Text("REQUEST PERMISSION")
@@ -172,6 +208,7 @@ fun InitialSettingsPreview() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Preview(showBackground = true)
 @Composable
 fun RequestPermissionScreenPreview() {
