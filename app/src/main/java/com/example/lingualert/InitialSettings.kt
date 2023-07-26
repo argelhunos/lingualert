@@ -4,24 +4,35 @@ import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.with
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -32,13 +43,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.lingualert.ui.theme.LingualertTheme
@@ -155,18 +169,43 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
             )
             Button(onClick = {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                //viewModel.advanceScreen()
+                if (!hasNotificationPermission && viewModel.permissionRequested == true) {
+                    viewModel.toggleDialog()
+                }
+                viewModel.togglePermissionRequest()
             }
             ) {
                 Text("REQUEST PERMISSION")
             }
+            Button(
+                onClick = {
+                    if (hasNotificationPermission) {
+                        viewModel.advanceScreen()
+                    } else {
+                        Toast.makeText(context, "Please enable notification permissions.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            ) {
+                Text("NEXT")
+            }
         }
     }
+
+    if (viewModel.showDialog && !hasNotificationPermission) {
+        WarningDialog(
+            viewModel = viewModel, onAllowRequest = {permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+        )
+    }
+
+    if (hasNotificationPermission) {
+        Toast.makeText(context, "You're all set! Time to move on.", Toast.LENGTH_LONG ).show()
+    }
+
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
-
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -193,8 +232,86 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                 label = { Text(text = "Duolingo Username") },
                 placeholder = { Text(text = "Please enter your username.") }
             )
-            Button(onClick = { /*TODO*/ }) {
+            Button(onClick = {
+                viewModel.tryWebView()
+            }) {
                 Text("LOGIN")
+            }
+            AnimatedContent(
+                targetState = viewModel.canShowWebView,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(150, 150)) with
+                            fadeOut(animationSpec = tween(150)) using
+                            SizeTransform { initialSize, targetSize ->
+                                if (targetState) {
+                                    keyframes {
+                                        IntSize(initialSize.width, targetSize.height) at 150
+                                        durationMillis = 300
+                                    }
+                                } else {
+                                    keyframes {
+                                        IntSize(initialSize.width, initialSize.height)
+                                    }
+                                }
+                            }
+                }
+            ) {targetExpanded ->
+                if (targetExpanded) {
+                    TODO("Create webview")
+                }
+            }
+        }
+    }
+}
+
+// need to add state to settingsvidewmodel
+@Composable
+fun WarningDialog(viewModel: SettingsViewModel, onAllowRequest: () -> Unit) {
+    Dialog(
+        onDismissRequest = { viewModel.toggleDialog() }
+    ) {
+        Box(
+            Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.errorContainer)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.duck), contentDescription = null
+                )
+                Text(
+                    text = "We need notification permissions!",
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Without your permission, the alarm won't be able to function properly. Please head to settings to enable the permission.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Row {
+                    Button(
+                        onClick = { viewModel.toggleDialog() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onErrorContainer)
+                    ) {
+                        Text("DECLINE")
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Button(
+                        onClick = {
+                            onAllowRequest()
+                            viewModel.toggleDialog()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onErrorContainer)
+                    ) {
+                        Text("ALLOW")
+                    }
+                }
             }
         }
     }
@@ -222,5 +339,13 @@ fun RequestPermissionScreenPreview() {
 fun LoginScreenPreview() {
     LingualertTheme {
         LoginScreen(viewModel = SettingsViewModel(Application()), modifier = Modifier)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun WarningDialogPreview() {
+    LingualertTheme {
+        WarningDialog(viewModel = SettingsViewModel(Application()), onAllowRequest = {})
     }
 }
