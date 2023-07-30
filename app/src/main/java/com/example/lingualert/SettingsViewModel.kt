@@ -21,6 +21,9 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
     // keep track if need to display webview of duolingo profile
     var canShowWebView by mutableStateOf(false)
 
+    // keep track of webview loading to avoid blank loading screen
+    var webViewLoaded by mutableStateOf(false)
+
     fun toggleDialog() {
         showDialog = !showDialog
     }
@@ -46,6 +49,8 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
             canShowWebView = true
         }
     }
+
+
 
     // set the desired duolingo username
     fun saveUsername(duolingoUser: String) {

@@ -3,7 +3,12 @@ package com.example.lingualert
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
+import android.util.Log
+import android.view.ViewGroup
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,8 +36,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -52,8 +57,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.lingualert.ui.theme.LingualertTheme
 
@@ -211,14 +216,14 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxSize()
     ) {
-        Image(painterResource(id = R.drawable.onboarding_login),
-            contentDescription = null
-        )
-        Spacer(modifier = Modifier.size(16.dp))
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Image(painterResource(id = R.drawable.onboarding_login),
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.size(16.dp))
             Text(
                 "Login",
                 style = MaterialTheme.typography.titleLarge,
@@ -256,8 +261,9 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                             }
                 }
             ) {targetExpanded ->
-                if (targetExpanded) {
-                    TODO("Create webview")
+                DuolingoProfile(viewModel = viewModel, modifier = modifier.weight(1f))
+                if (targetExpanded && !viewModel.webViewLoaded) {
+                    CircularProgressIndicator()
                 }
             }
         }
@@ -315,6 +321,41 @@ fun WarningDialog(viewModel: SettingsViewModel, onAllowRequest: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+fun DuolingoProfile(viewModel: SettingsViewModel, modifier: Modifier) {
+    var webView: WebView? = null
+
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            WebView(context).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                loadUrl("https://www.duolingo.com/profile/ArgelH")
+                webView = this
+                webView!!.webViewClient = object: WebViewClient() {
+                    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                        super.onPageStarted(view, url, favicon)
+                        //viewModel.webViewLoading = true
+                        Log.d("TAG", "webview loading")
+                    }
+
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        viewModel.webViewLoaded = true
+                        Log.d("TAG", "webview loaded")
+                    }
+                }
+            }
+        }, update = {
+            webView = it
+        })
 }
 
 @Preview(showBackground = true)
