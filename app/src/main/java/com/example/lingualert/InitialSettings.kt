@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
@@ -32,12 +33,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -48,7 +53,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,7 +83,7 @@ fun InitialScreenFlow(viewModel: SettingsViewModel, modifier: Modifier) {
             slideInHorizontally { height -> height } + fadeIn() with
                 slideOutHorizontally { height -> - height } + fadeOut()
         },
-        modifier = Modifier.offset{IntOffset.Zero}
+        modifier = modifier.offset{IntOffset.Zero}
         ) {currentStep ->
         when (currentStep) {
             0 -> InitialScreen(viewModel = viewModel, modifier = modifier)
@@ -234,8 +241,24 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                 onValueChange = { username ->
                     viewModel.username = username
                 },
+                singleLine = true,
+                isError = viewModel.textFieldError,
                 label = { Text(text = "Duolingo Username") },
-                placeholder = { Text(text = "Please enter your username.") }
+                placeholder = { Text(text = "Please enter your username.") },
+                supportingText = {
+                    if (viewModel.textFieldError) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = "Error: Username cannot be empty",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                trailingIcon = {
+                    if (viewModel.textFieldError) {
+                        Icon(painterResource(id = R.drawable.error), null)
+                    }
+                }
             )
             Button(onClick = {
                 viewModel.tryWebView()
@@ -261,16 +284,26 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                             }
                 }
             ) {targetExpanded ->
-                DuolingoProfile(viewModel = viewModel, modifier = modifier.weight(1f))
+                if (targetExpanded) {
+                    DuolingoProfile(viewModel = viewModel, modifier = modifier.height(400.dp))
+                }
                 if (targetExpanded && !viewModel.webViewLoaded) {
-                    CircularProgressIndicator()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier
+                                .size(40.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// need to add state to settingsvidewmodel
+
 @Composable
 fun WarningDialog(viewModel: SettingsViewModel, onAllowRequest: () -> Unit) {
     Dialog(
@@ -328,7 +361,7 @@ fun DuolingoProfile(viewModel: SettingsViewModel, modifier: Modifier) {
     var webView: WebView? = null
 
     AndroidView(
-        modifier = modifier,
+        modifier = modifier.alpha(0.99f),
         factory = { context ->
             WebView(context).apply {
                 layoutParams = ViewGroup.LayoutParams(

@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    InitialScreenFlow(viewModel = settingsViewModel, modifier = Modifier.padding(16.dp))
+                    InitialScreenFlow(viewModel = settingsViewModel, modifier = Modifier.padding(14.dp))
                     //MainScreen(viewModel = viewModel, modifier = Modifier.padding(16.dp))
                 }
             }

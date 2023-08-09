@@ -24,6 +24,9 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
     // keep track of webview loading to avoid blank loading screen
     var webViewLoaded by mutableStateOf(false)
 
+    // keep track of error of username text
+    var textFieldError by mutableStateOf(false)
+
     fun toggleDialog() {
         showDialog = !showDialog
     }
@@ -48,6 +51,10 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
         if (username != "") {
             canShowWebView = true
         }
+    }
+
+    fun checkTextView() {
+        textFieldError = username.isBlank()
     }
 
 
