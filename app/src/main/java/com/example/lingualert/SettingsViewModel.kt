@@ -1,10 +1,16 @@
 package com.example.lingualert
 
+import android.app.Activity
 import android.app.Application
+import android.content.Context
+import android.net.Uri
 import android.util.Log
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsIntent.ACTIVITY_HEIGHT_FIXED
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.lifecycle.AndroidViewModel
 
 class SettingsViewModel(application: Application): AndroidViewModel(application) {
@@ -48,6 +54,16 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
         if (username != "") {
             canShowWebView = true
         }
+    }
+
+    fun launchCustomTab(context: Context) {
+        val url = "https://www.duolingo.com/profile/ArgelH"
+        val customTabsIntent = CustomTabsIntent.Builder()
+            .setInitialActivityHeightPx(400)
+            .build()
+        customTabsIntent.intent.data = Uri.parse(url)
+        (context as Activity).startActivityForResult(customTabsIntent.intent, 1)
+//        customTabsIntent.launchUrl(context, Uri.parse(url))
     }
 
 

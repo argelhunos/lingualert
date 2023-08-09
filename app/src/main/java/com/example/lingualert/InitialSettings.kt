@@ -211,6 +211,9 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
+    // context needed for launching custom tab
+    val context = LocalContext.current
+
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -238,34 +241,12 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                 placeholder = { Text(text = "Please enter your username.") }
             )
             Button(onClick = {
-                viewModel.tryWebView()
+//                viewModel.tryWebView()
+                viewModel.launchCustomTab(context)
             }) {
                 Text("LOGIN")
             }
-            AnimatedContent(
-                targetState = viewModel.canShowWebView,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(150, 150)) with
-                            fadeOut(animationSpec = tween(150)) using
-                            SizeTransform { initialSize, targetSize ->
-                                if (targetState) {
-                                    keyframes {
-                                        IntSize(initialSize.width, targetSize.height) at 150
-                                        durationMillis = 300
-                                    }
-                                } else {
-                                    keyframes {
-                                        IntSize(initialSize.width, initialSize.height)
-                                    }
-                                }
-                            }
-                }
-            ) {targetExpanded ->
-                DuolingoProfile(viewModel = viewModel, modifier = modifier.weight(1f))
-                if (targetExpanded && !viewModel.webViewLoaded) {
-                    CircularProgressIndicator()
-                }
-            }
+
         }
     }
 }
