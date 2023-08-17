@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// TODO: find the difference between withContext and viewmodel scope again
+
 class AlarmViewModel(application: Application): AndroidViewModel(application) {
     private val _readAllData: LiveData<List<Alarm>>
     val allAlarms: LiveData<List<Alarm>>

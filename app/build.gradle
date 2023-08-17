@@ -87,4 +87,7 @@ dependencies {
 
     // for navigation controller
     implementation 'androidx.navigation:navigation-compose:2.6.0'
+
+    // for use of datastore (store username)
+    implementation 'androidx.datastore:datastore-preferences-android:1.1.0-alpha04'
 }

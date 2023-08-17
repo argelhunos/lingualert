@@ -5,7 +5,14 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.lingualert.preferencedatastore.DataStoreManager
+import com.example.lingualert.preferencedatastore.UserDetails
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application): AndroidViewModel(application) {
     // username entered (DO NOT USE MUTABLESTATEFLOW FOR THIS, ANTI PATTERN? WHAT IS ANTIPATTERN?)
@@ -25,7 +32,11 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
     var webViewLoaded by mutableStateOf(false)
 
     // keep track of error of username text
-    var textFieldError by mutableStateOf(false)
+    var textFieldError by mutableStateOf("")
+
+    // lateinit allows to avoid initializing a property when an object is constructed.
+    lateinit var dataStoreManager: DataStoreManager
+
 
     fun toggleDialog() {
         showDialog = !showDialog
@@ -48,19 +59,34 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
 
     // display webview only if user has inputted a username
     fun tryWebView() {
-        if (username != "") {
+        if (textFieldError.isBlank()) {
             canShowWebView = true
         }
     }
 
     fun checkTextView() {
-        textFieldError = username.isBlank()
+        textFieldError = if (username.isBlank()) {
+            "Username cannot be blank."
+        } else if (username.split(" ").count() != 1) {
+            "Usernames do not contain any spaces."
+        } else {
+            ""
+        }
     }
 
-
+    // clear username when user indicates profile is wrong
+    fun resetLogin() {
+        username = ""
+        canShowWebView = false
+        webViewLoaded = false
+    }
 
     // set the desired duolingo username
-    fun saveUsername(duolingoUser: String) {
-        // TODO: either use datastore or sharedprefs to store username
+    fun saveUsername() {
+        viewModelScope.launch(Dispatchers.IO) {
+            dataStoreManager.saveUsername(
+                UserDetails(username = username)
+            )
+        }
     }
 }

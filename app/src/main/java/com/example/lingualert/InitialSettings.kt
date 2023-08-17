@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.drawable.Icon
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
@@ -15,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.keyframes
@@ -39,10 +39,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -57,6 +60,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -77,6 +81,12 @@ import com.example.lingualert.ui.theme.LingualertTheme
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun InitialScreenFlow(viewModel: SettingsViewModel, modifier: Modifier) {
+    /*
+        Animated initial screen:
+            IntialScreen - introduce user to app
+            RequestPermissionScreen - get permission for alarm and explain rationale behind permission request
+            LoginScreen - get and save username from user
+     */
     AnimatedContent(
         targetState = viewModel.currentStep,
         transitionSpec = {
@@ -218,6 +228,8 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
+    val focusManager = LocalFocusManager.current
+
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -230,41 +242,69 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
             Image(painterResource(id = R.drawable.onboarding_login),
                 contentDescription = null
             )
-            Spacer(modifier = Modifier.size(16.dp))
             Text(
                 "Login",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
-            TextField(
-                value = viewModel.username,
-                onValueChange = { username ->
-                    viewModel.username = username
-                },
-                singleLine = true,
-                isError = viewModel.textFieldError,
-                label = { Text(text = "Duolingo Username") },
-                placeholder = { Text(text = "Please enter your username.") },
-                supportingText = {
-                    if (viewModel.textFieldError) {
-                        Text(
-                            modifier = Modifier.fillMaxWidth(),
-                            text = "Error: Username cannot be empty",
-                            color = MaterialTheme.colorScheme.error
+            AnimatedContent(
+                targetState = !viewModel.canShowWebView,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(150, 150)) with
+                            fadeOut(animationSpec = tween(150)) using
+                            SizeTransform { initialSize, targetSize ->
+                                if (targetState) {
+                                    keyframes {
+                                        IntSize(initialSize.width, targetSize.height) at 150
+                                        durationMillis = 300
+                                    }
+                                } else {
+                                    keyframes {
+                                        IntSize(initialSize.width, initialSize.height)
+                                    }
+                                }
+                            }
+                }
+            ) {targetExpanded ->
+                if (targetExpanded) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextField(
+                            value = viewModel.username,
+                            onValueChange = { username ->
+                                viewModel.username = username
+                            },
+                            singleLine = true,
+                            isError = viewModel.textFieldError.isNotBlank(),
+                            label = { Text(text = "Duolingo Username") },
+                            placeholder = { Text(text = "Please enter your username.") },
+                            supportingText = { Text(viewModel.textFieldError) },
+                            trailingIcon = {
+                                if (viewModel.textFieldError.isNotBlank()) {
+                                    Icon(
+                                        painterResource(id = R.drawable.error),
+                                        null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         )
-                    }
-                },
-                trailingIcon = {
-                    if (viewModel.textFieldError) {
-                        Icon(painterResource(id = R.drawable.error), null)
+                        Button(onClick = {
+                            // check for errors in username, launch profile webview, dismiss keyboard if input is valid
+                            viewModel.checkTextView()
+                            viewModel.tryWebView()
+                            if (viewModel.textFieldError.isBlank()) {
+                                focusManager.clearFocus()
+                            }
+                        }) {
+                            Text("LOGIN")
+                        }
                     }
                 }
-            )
-            Button(onClick = {
-                viewModel.tryWebView()
-            }) {
-                Text("LOGIN")
             }
+
             AnimatedContent(
                 targetState = viewModel.canShowWebView,
                 transitionSpec = {
@@ -297,6 +337,18 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                                 .size(40.dp)
                         )
                     }
+                }
+            }
+            Crossfade(targetState = viewModel.webViewLoaded) { webViewReady ->
+                if (webViewReady) {
+                    ConfirmUsernameBox(
+                        onConfirm = {
+                            viewModel.saveUsername()
+                        },
+                        onDeny = {
+                            viewModel.resetLogin()
+                        }
+                    )
                 }
             }
         }
@@ -357,11 +409,55 @@ fun WarningDialog(viewModel: SettingsViewModel, onAllowRequest: () -> Unit) {
 }
 
 @Composable
+fun ConfirmUsernameBox(onConfirm: () -> Unit, onDeny: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(8.dp)
+        ) {
+            Text(
+                "Is this profile correct?",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(3f)
+            )
+            Row(modifier = Modifier.weight(1f)) {
+                IconButton(
+                    onClick = {
+                        onConfirm()
+                    }) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Yes",
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        onDeny()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "No",
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun DuolingoProfile(viewModel: SettingsViewModel, modifier: Modifier) {
     var webView: WebView? = null
 
     AndroidView(
-        modifier = modifier.alpha(0.99f),
+        modifier = modifier
+            .alpha(0.99f)
+            .clip(MaterialTheme.shapes.medium),
         factory = { context ->
             WebView(context).apply {
                 layoutParams = ViewGroup.LayoutParams(
@@ -370,7 +466,7 @@ fun DuolingoProfile(viewModel: SettingsViewModel, modifier: Modifier) {
                 )
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
-                loadUrl("https://www.duolingo.com/profile/ArgelH")
+                loadUrl("https://www.duolingo.com/profile/${viewModel.username}")
                 webView = this
                 webView!!.webViewClient = object: WebViewClient() {
                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -404,7 +500,7 @@ fun InitialSettingsPreview() {
 @Composable
 fun RequestPermissionScreenPreview() {
     LingualertTheme {
-        RequestPermissionScreen(viewModel = SettingsViewModel(Application()),modifier = Modifier)
+        RequestPermissionScreen(viewModel = SettingsViewModel(Application()), modifier = Modifier)
     }
 }
 
@@ -421,5 +517,13 @@ fun LoginScreenPreview() {
 fun WarningDialogPreview() {
     LingualertTheme {
         WarningDialog(viewModel = SettingsViewModel(Application()), onAllowRequest = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ConfirmUsernameBoxPreview() {
+    LingualertTheme {
+        ConfirmUsernameBox(onConfirm = {}, onDeny = {})
     }
 }

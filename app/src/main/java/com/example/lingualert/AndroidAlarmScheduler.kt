@@ -12,7 +12,7 @@ import java.util.Calendar
 *
 * BECAUSE U KEEP FORGOR:
 * Intent - obj carrying intent, like message from one component to another.
-*          can communicate messages among any of the three
+*          can communicate messages among any of the three. what it intends to do
 * PendingIntent - token given to foreign app (ex. alarm manager) to use application's perms to execute
 *                 predefined piece of code
 *
