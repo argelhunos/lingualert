@@ -1,5 +1,6 @@
 package com.example.lingualert
 
+import android.app.Activity
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -36,28 +37,35 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TimePickerColors
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.lingualert.preferencedatastore.DataStoreManager
 import com.example.lingualert.ui.theme.LingualertTheme
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.time.TimePickerDefaults
 import com.vanpra.composematerialdialogs.datetime.time.timepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: AlarmViewModel by viewModels()
+    private val alarmViewModel: AlarmViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val dataStoreManager = DataStoreManager(context = this)
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,8 +76,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    InitialScreenFlow(viewModel = settingsViewModel, modifier = Modifier.padding(14.dp))
+                    Navigation(alarmViewModel = alarmViewModel, settingsViewModel = settingsViewModel, dataStoreManager = dataStoreManager, activity = this, modifier = Modifier.padding(14.dp))
+//                  InitialScreenFlow(viewModel = settingsViewModel, modifier = Modifier.padding(14.dp))
                     //MainScreen(viewModel = viewModel, modifier = Modifier.padding(16.dp))
+
                 }
             }
         }
@@ -77,20 +87,63 @@ class MainActivity : ComponentActivity() {
 }
 
 // navigation controller to handle multiple screens
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-fun Navigation(viewModel: AlarmViewModel, modifier: Modifier) {
+fun Navigation(alarmViewModel: AlarmViewModel, settingsViewModel: SettingsViewModel, dataStoreManager: DataStoreManager, activity: Activity, modifier: Modifier) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = Screen.MainActivity.route
+        startDestination = Screen.LoadingScreen.route
     ) {
         composable(route = Screen.MainActivity.route) {
-            MainScreen(viewModel = viewModel, modifier = modifier)
+            MainScreen(viewModel = alarmViewModel, modifier = modifier)
         }
 
         composable(route = Screen.InitialSettings.route) {
+            InitialScreenFlow(viewModel = settingsViewModel, activity = activity, modifier = Modifier.padding(14.dp))
+        }
 
+        composable(route = Screen.LoadingScreen.route) {
+            LoadingScreen()
+        }
+    }
+
+    LaunchedEffect(dataStoreManager.getUsername()) {
+        if (dataStoreManager.getUsername().first().username.isNotBlank()) {
+            navController.navigate(Screen.MainActivity.route)
+        } else {
+            navController.navigate(Screen.InitialSettings.route)
+        }
+    }
+
+    if (settingsViewModel.settingsComplete) {
+        navController.navigate(Screen.MainActivity.route)
+    }
+}
+
+@Composable
+fun LoadingScreen() {
+    Column(
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Image(
+            painterResource(id = R.drawable.onboarding),
+            contentDescription = null,
+        )
+        Spacer(modifier = Modifier.size(16.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Lingualert",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

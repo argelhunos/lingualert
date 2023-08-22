@@ -9,9 +9,12 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.compose.rememberNavController
 import com.example.lingualert.preferencedatastore.DataStoreManager
 import com.example.lingualert.preferencedatastore.UserDetails
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application): AndroidViewModel(application) {
@@ -35,7 +38,9 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
     var textFieldError by mutableStateOf("")
 
     // lateinit allows to avoid initializing a property when an object is constructed.
-    lateinit var dataStoreManager: DataStoreManager
+    var dataStoreManager = DataStoreManager(getApplication())
+
+    var settingsComplete by mutableStateOf(false)
 
 
     fun toggleDialog() {
@@ -88,5 +93,10 @@ class SettingsViewModel(application: Application): AndroidViewModel(application)
                 UserDetails(username = username)
             )
         }
+    }
+
+    // finish settings
+    fun navigateToMainScreen() {
+        settingsComplete = true
     }
 }

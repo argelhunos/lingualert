@@ -7,4 +7,5 @@ package com.example.lingualert
 sealed class Screen (val route: String) {
     object MainActivity: Screen("main_screen")
     object InitialSettings: Screen("initial_settings")
+    object LoadingScreen: Screen("loading_screen")
 }

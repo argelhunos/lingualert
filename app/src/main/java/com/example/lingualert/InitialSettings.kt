@@ -1,10 +1,14 @@
 package com.example.lingualert
 
 import android.Manifest
+import android.app.Activity
 import android.app.Application
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -37,7 +41,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -58,7 +61,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -80,12 +82,13 @@ import com.example.lingualert.ui.theme.LingualertTheme
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun InitialScreenFlow(viewModel: SettingsViewModel, modifier: Modifier) {
+fun InitialScreenFlow(viewModel: SettingsViewModel, activity: Activity, modifier: Modifier) {
     /*
         Animated initial screen:
             IntialScreen - introduce user to app
             RequestPermissionScreen - get permission for alarm and explain rationale behind permission request
             LoginScreen - get and save username from user
+            Complete Screen - transition from initial screen to main screen
      */
     AnimatedContent(
         targetState = viewModel.currentStep,
@@ -97,8 +100,9 @@ fun InitialScreenFlow(viewModel: SettingsViewModel, modifier: Modifier) {
         ) {currentStep ->
         when (currentStep) {
             0 -> InitialScreen(viewModel = viewModel, modifier = modifier)
-            1 -> RequestPermissionScreen(viewModel = viewModel, modifier = modifier)
+            1 -> RequestPermissionScreen(viewModel = viewModel, activity = activity, modifier = modifier)
             2 -> LoginScreen(viewModel = viewModel, modifier = modifier)
+            3 -> CompleteScreen(viewModel = viewModel, modifier = modifier)
         }
     }
 }
@@ -141,7 +145,7 @@ fun InitialScreen(viewModel: SettingsViewModel, modifier: Modifier) {
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
+fun RequestPermissionScreen(viewModel: SettingsViewModel, activity: Activity, modifier: Modifier) {
     // permission launcher needed to get permission from user
 
     val context = LocalContext.current
@@ -156,13 +160,14 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
         } else mutableStateOf(true)
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
+    var hasDrawOverAppsPermission by remember {
+        mutableStateOf(Settings.canDrawOverlays(context))
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             hasNotificationPermission = isGranted
-            if (!isGranted) {
-
-            }
         }
     )
 
@@ -190,7 +195,7 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                 textAlign = TextAlign.Center
             )
             Button(onClick = {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 if (!hasNotificationPermission && viewModel.permissionRequested == true) {
                     viewModel.toggleDialog()
                 }
@@ -199,9 +204,25 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
             ) {
                 Text("REQUEST PERMISSION")
             }
+            Button(onClick = {
+                // must request draw over apps permission through settings
+                if (!hasDrawOverAppsPermission) {
+                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:com.example.lingualert"))
+                    activity.startActivityForResult(intent, 0)
+                }
+
+                if (!hasDrawOverAppsPermission && viewModel.permissionRequested == true) {
+                    viewModel.toggleDialog()
+                }
+                viewModel.togglePermissionRequest()
+            }
+            ) {
+                Text("REQUEST PERMISSION")
+            }
+
             Button(
                 onClick = {
-                    if (hasNotificationPermission) {
+                    if (hasNotificationPermission && hasDrawOverAppsPermission) {
                         viewModel.advanceScreen()
                     } else {
                         Toast.makeText(context, "Please enable notification permissions.", Toast.LENGTH_LONG).show()
@@ -211,17 +232,23 @@ fun RequestPermissionScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                 Text("NEXT")
             }
         }
+
+        Spacer(modifier = Modifier.size(16.dp))
+
+        // change to snackbar
+        Crossfade(targetState = (hasNotificationPermission && hasDrawOverAppsPermission)) { hasPermission ->
+            if (hasPermission) {
+                SnackBar()
+            }
+        }
     }
 
     if (viewModel.showDialog && !hasNotificationPermission) {
         WarningDialog(
-            viewModel = viewModel, onAllowRequest = {permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+            viewModel = viewModel, onAllowRequest = {notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
         )
     }
 
-    if (hasNotificationPermission) {
-        Toast.makeText(context, "You're all set! Time to move on.", Toast.LENGTH_LONG ).show()
-    }
 
 }
 
@@ -344,12 +371,45 @@ fun LoginScreen(viewModel: SettingsViewModel, modifier: Modifier) {
                     ConfirmUsernameBox(
                         onConfirm = {
                             viewModel.saveUsername()
+                            viewModel.advanceScreen()
                         },
                         onDeny = {
                             viewModel.resetLogin()
                         }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun CompleteScreen(viewModel: SettingsViewModel, modifier: Modifier) {
+    Column(
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .fillMaxSize()
+    ) {
+        Image(
+            painterResource(id = R.drawable.onboarding),
+            contentDescription = null,
+        )
+        Spacer(modifier = Modifier.size(16.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "You're all set!",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Button(onClick = {
+                viewModel.navigateToMainScreen()
+            }
+            ) {
+                Text("LETS GO!")
             }
         }
     }
@@ -451,6 +511,24 @@ fun ConfirmUsernameBox(onConfirm: () -> Unit, onDeny: () -> Unit) {
 }
 
 @Composable
+fun SnackBar() {
+    Box {
+        Row(
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .background(color = MaterialTheme.colorScheme.primaryContainer)
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                "You're all set! Time to move on.",
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
+@Composable
 fun DuolingoProfile(viewModel: SettingsViewModel, modifier: Modifier) {
     var webView: WebView? = null
 
@@ -500,7 +578,7 @@ fun InitialSettingsPreview() {
 @Composable
 fun RequestPermissionScreenPreview() {
     LingualertTheme {
-        RequestPermissionScreen(viewModel = SettingsViewModel(Application()), modifier = Modifier)
+        RequestPermissionScreen(viewModel = SettingsViewModel(Application()), activity = Activity(), modifier = Modifier)
     }
 }
 
@@ -525,5 +603,13 @@ fun WarningDialogPreview() {
 fun ConfirmUsernameBoxPreview() {
     LingualertTheme {
         ConfirmUsernameBox(onConfirm = {}, onDeny = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SnackBarPreview() {
+    LingualertTheme {
+        SnackBar()
     }
 }

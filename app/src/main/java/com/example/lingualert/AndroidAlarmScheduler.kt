@@ -26,10 +26,11 @@ class AndroidAlarmScheduler(
     private lateinit var alarmIntent: PendingIntent
 
     override suspend fun schedule(alarm: Alarm) {
-        // create intent for alarm with specified time
-        alarmIntent = Intent(context, AlarmReceiver::class.java).let { intent ->
+        // create intent for alarm with specified time, setting the action with the intent to be able to identify in the alarm receiver
+        alarmIntent = Intent(context, AlarmReceiver::class.java).setAction("com.example.lingualert.ALARM_RECEIVED").let { intent ->
             PendingIntent.getBroadcast(context, alarm.requestCode, intent, PendingIntent.FLAG_IMMUTABLE)
         }
+
 
         // set alarm with user specified time
         val calendar: Calendar = Calendar.getInstance().apply {

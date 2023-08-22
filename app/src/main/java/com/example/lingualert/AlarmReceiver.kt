@@ -3,6 +3,7 @@ package com.example.lingualert
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -24,31 +25,48 @@ class AlarmReceiver: BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         // create high-priority notification to tell user to open duolingo
-        createNotificationChannel(context)
 
-        val fullScreenIntent = Intent(context, AlarmActivity::class.java)
-        val fullScreenPendingIntent = PendingIntent.getActivity(context, 0, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+//        val fullScreenIntent = Intent(context, AlarmActivity::class.java)
+//        val fullScreenPendingIntent = PendingIntent.getActivity(context, 0, fullScreenIntent, FLAG_IMMUTABLE)
+//
+//        val notificiationBuilder =
+//            NotificationCompat.Builder(context, CHANNEL_ID)
+//                .setSmallIcon(R.drawable.alarm)
+//                .setContentTitle("Wake up!")
+//                .setContentText("Time to do your lesson.")
+//                .setPriority(NotificationCompat.PRIORITY_HIGH)
+//                .setCategory(NotificationCompat.CATEGORY_ALARM)
+//                .setOngoing(true)
+//
+//                // using full screen intent to launch alarm activity
+//                .setFullScreenIntent(fullScreenPendingIntent, true)
+//
+//        val incomingAlarmNotification = notificiationBuilder.build()
+//
+//        // set alarm notification to include FLAG FOREGROUND SERVICE AND NO CLEAR FLAGS
+//        incomingAlarmNotification.flags = incomingAlarmNotification.flags or NotificationCompat.FLAG_FOREGROUND_SERVICE or NotificationCompat.FLAG_NO_CLEAR
+//
+//        // create notification manager
+//        val notificationManager = NotificationManagerCompat.from(context)
+//
+//        with(notificationManager) {
+//            notify(NOTIFICATION_ID, incomingAlarmNotification)
+//        }
 
-        val notificiationBuilder =
-            NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.alarm)
-                .setContentTitle("Wake up!")
-                .setContentText("Time to do your lesson.")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
+        // check if the intent is the one that is from the alarm created
+        val intentAction = intent.action
 
-                // using full screen intent to launch alarm activity
-                .setFullScreenIntent(fullScreenPendingIntent, true)
+        if (intentAction == "com.example.lingualert.ALARM_RECEIVED") {
+            // create an intent that will start the service
+            val serviceIntent = Intent(context, AlarmService::class.java)
 
-        val incomingAlarmNotification = notificiationBuilder.build()
-        // create notification manager
-        val notificationManager = NotificationManagerCompat.from(context)
+            // start service
+            context.startService(serviceIntent)
 
-        with(notificationManager) {
-            notify(NOTIFICATION_ID, incomingAlarmNotification)
+//            Log.d("TAG", "YUH ALARM RECEIVED")
         }
 
-        Log.d("TAG", "YUH ALARM RECEIVED")
+
     }
 
     private fun createNotificationChannel(context: Context) {
